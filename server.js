@@ -97,11 +97,14 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 app.get('/get-images', async (req, res) => {
+    console.log('Received request for images');
     const searchTerm = req.query.search ? req.query.search.toLowerCase() : '';
     const imagesDir = path.join(__dirname, 'public', 'images');
     
     try {
+        console.log('Searching for images in:', imagesDir);
         const imagePaths = await getImagesRecursively(imagesDir, searchTerm);
+        console.log('Found', imagePaths.length, 'images');
         res.json(imagePaths);
     } catch (error) {
         console.error('读取图片目录失败:', error);
@@ -158,6 +161,22 @@ app.delete('/delete-image/:imagePath(*)', async (req, res) => {
 
 app.get('/config', (req, res) => {
     res.json({ baseUrl: BASE_URL });
+});
+
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+});
+
+app.get('/images/:imageName', (req, res) => {
+    const imagePath = path.join(__dirname, 'public', 'images', req.params.imageName);
+    console.log(`尝试加载图片: ${imagePath}`);
+    fs.access(imagePath, fs.constants.R_OK, (err) => {
+        if (err) {
+            console.error(`无法访问图片: ${imagePath}`, err);
+            return res.status(404).send('图片不存在或无法访问');
+        }
+        res.sendFile(imagePath);
+    });
 });
 
 app.listen(PORT, () => {

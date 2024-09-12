@@ -22,13 +22,35 @@ async function loadImages(searchTerm = '') {
         .catch(error => console.error('加载图片失败:', error));
 }
 
+function loadImage(imgElement, src, retries = 3) {
+    imgElement.src = src;
+    imgElement.onerror = () => {
+        if (retries > 0) {
+            setTimeout(() => {
+                console.log(`重试加载图片: ${src}, 剩余尝试次数: ${retries - 1}`);
+                loadImage(imgElement, src, retries - 1);
+            }, 1000);
+        } else {
+            console.error(`无法加载图片: ${src}`);
+            imgElement.src = 'path/to/fallback-image.jpg'; // 使用一个占位图片
+        }
+    };
+}
+
 function updateGallery(images) {
+    console.log('Updating gallery with', images.length, 'images');
     const gallery = document.getElementById('gallery');
     gallery.innerHTML = '';
     let loadedImages = 0;
     const totalImages = images.length;
 
-    images.forEach(image => {
+    const loadTimeout = setTimeout(() => {
+        console.log('Loading timeout reached, initializing Masonry anyway');
+        initMasonry();
+    }, 10000); // 10秒后强制初始化
+
+    images.forEach((image, index) => {
+        console.log('Processing image', index + 1, 'of', totalImages);
         const container = document.createElement('div');
         container.className = 'image-container';
         container.innerHTML = `
@@ -42,15 +64,22 @@ function updateGallery(images) {
         gallery.appendChild(container);
 
         const img = container.querySelector('img');
+        loadImage(img, image.thumbnailPath);
+
         img.onload = () => {
             loadedImages++;
+            console.log('Image loaded:', loadedImages, 'of', totalImages);
             if (loadedImages === totalImages) {
+                clearTimeout(loadTimeout);
+                console.log('All images loaded, initializing Masonry');
                 initMasonry();
             }
         };
         img.onerror = () => {
             loadedImages++;
+            console.error('Failed to load image:', image.path);
             if (loadedImages === totalImages) {
+                console.log('All images processed, initializing Masonry');
                 initMasonry();
             }
         };
@@ -81,7 +110,9 @@ function updateGallery(images) {
 
 // 初始化瀑布流布局
 function initMasonry() {
+    console.log('Initializing Masonry');
     if (msnry) {
+        console.log('Destroying existing Masonry instance');
         msnry.destroy();
     }
     const gallery = document.getElementById('gallery');
@@ -90,6 +121,7 @@ function initMasonry() {
         columnWidth: '.image-container',
         percentPosition: true
     });
+    console.log('Masonry initialized');
 }
 
 function deleteImage(imagePath) {
@@ -173,7 +205,7 @@ initConfig().then(() => {
     loadImages(); // 加载图片
 });
 
-// 初始加载��片列表
+// 初始加载片列表
 loadImages();
 
 // 在页面加载完成后初始化瀑布流布局
