@@ -42,49 +42,34 @@ async function getImageInfo(filePath) {
 async function getImagesRecursively(dir, searchTerm = '') {
     const entries = await fs.readdir(dir, { withFileTypes: true });
     let results = [];
-    let subDirImages = [];
 
     for (let entry of entries) {
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
-            subDirImages = subDirImages.concat(await getImagesRecursively(fullPath, searchTerm));
+            const subDirImages = await getImagesRecursively(fullPath, searchTerm);
+            results = results.concat(subDirImages);
         } else {
             const ext = path.extname(entry.name).toLowerCase();
             if (!entry.name.startsWith(THUMB_PREFIX) && 
                 ['.jpg', '.jpeg', '.png', '.gif'].includes(ext) && 
                 (!searchTerm || entry.name.toLowerCase().includes(searchTerm))) {
                 const imageInfo = await getImageInfo(fullPath);
+                const relativePath = path.relative(path.join(__dirname, 'public'), fullPath);
+                const publicPath = '/' + relativePath.replace(/\\/g, '/');
+                const thumbnailPath = await createThumbnail(fullPath);
+                const thumbnailPublicPath = '/' + path.relative(path.join(__dirname, 'public'), thumbnailPath).replace(/\\/g, '/');
+                
                 results.push({
-                    path: fullPath,
-                    ...imageInfo
+                    path: publicPath,
+                    thumbnailPath: thumbnailPublicPath,
+                    resolution: `${imageInfo.width}x${imageInfo.height}`,
+                    isDirectory: false
                 });
             }
         }
     }
 
-    // 如果当前目录有图片，只返回分辨率最大的那张
-    if (results.length > 0) {
-        const maxResolutionImage = results.reduce((max, img) => img.resolution > max.resolution ? img : max);
-        const relativePath = path.relative(path.join(__dirname, 'public'), maxResolutionImage.path);
-        const publicPath = '/' + relativePath.replace(/\\/g, '/');
-        const thumbnailPath = await createThumbnail(maxResolutionImage.path);
-        const thumbnailPublicPath = '/' + path.relative(path.join(__dirname, 'public'), thumbnailPath).replace(/\\/g, '/');
-        
-        return [{
-            path: publicPath,
-            thumbnailPath: thumbnailPublicPath,
-            resolution: `${maxResolutionImage.width}x${maxResolutionImage.height}`,
-            isDirectory: false
-        }];
-    }
-
-    // 如果是空目录或只有子目录，返回子目录的结果
-    return subDirImages.length > 0 ? subDirImages : [{
-        path: '/' + path.relative(path.join(__dirname, 'public'), dir).replace(/\\/g, '/'),
-        thumbnailPath: null,
-        resolution: null,
-        isDirectory: true
-    }];
+    return results;
 }
 
 // 在上传图片时创建缩略图

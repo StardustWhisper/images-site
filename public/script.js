@@ -1,4 +1,5 @@
 let baseUrl = '';
+let msnry;
 
 async function initConfig() {
     try {
@@ -24,39 +25,43 @@ async function loadImages(searchTerm = '') {
 function updateGallery(images) {
     const gallery = document.getElementById('gallery');
     gallery.innerHTML = '';
+    let loadedImages = 0;
+    const totalImages = images.length;
+
     images.forEach(image => {
         const container = document.createElement('div');
         container.className = 'image-container';
-        if (image.isDirectory) {
-            container.innerHTML = `
-                <div class="directory-icon">📁</div>
-                <div class="directory-name">${image.path.split('/').pop()}</div>
-            `;
-        } else {
-            container.innerHTML = `
-                <img src="${image.thumbnailPath}" alt="${image.path.split('/').pop()}" data-full-image="${image.path}" loading="lazy">
-                <div class="image-resolution">${image.resolution}</div>
-                <div class="image-actions">
-                    <button class="copy-btn" data-url="${image.path}">复制链接</button>
-                    <button class="delete-btn" data-path="${image.path}">删除</button>
-                </div>
-            `;
-        }
+        container.innerHTML = `
+            <img src="${image.thumbnailPath}" alt="${image.path.split('/').pop()}" data-full-image="${image.path}" loading="lazy">
+            <div class="image-resolution">${image.resolution}</div>
+            <div class="image-actions">
+                <button class="copy-btn" data-url="${image.path}">复制链接</button>
+                <button class="delete-btn" data-path="${image.path}">删除</button>
+            </div>
+        `;
         gallery.appendChild(container);
 
-        if (!image.isDirectory) {
-            // 在后台加载原图
-            const img = container.querySelector('img');
-            const fullImg = new Image();
-            fullImg.onload = function() {
-                img.src = image.path;
+        const img = container.querySelector('img');
+        img.onload = () => {
+            loadedImages++;
+            if (loadedImages === totalImages) {
+                initMasonry();
             }
-            fullImg.src = image.path;
-        }
-    });
+        };
+        img.onerror = () => {
+            loadedImages++;
+            if (loadedImages === totalImages) {
+                initMasonry();
+            }
+        };
 
-    // 初始化瀑布流布局
-    initMasonry();
+        // 在后台加载原图
+        const fullImg = new Image();
+        fullImg.onload = function() {
+            img.src = image.path;
+        }
+        fullImg.src = image.path;
+    });
 
     // 绑定事件监听器
     document.querySelectorAll('.copy-btn').forEach(btn => {
@@ -83,8 +88,11 @@ function updateGallery(images) {
 
 // 初始化瀑布流布局
 function initMasonry() {
+    if (msnry) {
+        msnry.destroy();
+    }
     const gallery = document.getElementById('gallery');
-    new Masonry(gallery, {
+    msnry = new Masonry(gallery, {
         itemSelector: '.image-container',
         columnWidth: '.image-container',
         percentPosition: true
@@ -116,18 +124,13 @@ function deleteImage(imagePath) {
 }
 
 function copyImageUrl(url) {
-    const fullUrl = new URL(url, baseUrl).href;
-    
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(fullUrl).then(() => {
-            alert('图片链接已复制到剪贴板');
-        }).catch(err => {
-            console.error('复制失败:', err);
-            fallbackCopyTextToClipboard(fullUrl);
-        });
-    } else {
-        fallbackCopyTextToClipboard(fullUrl);
-    }
+    const fullUrl = new URL(url, window.location.origin).href;
+    navigator.clipboard.writeText(fullUrl).then(() => {
+        alert('图片链接已复制到剪贴板');
+    }).catch(err => {
+        console.error('复制失败:', err);
+        alert('复制失败，请手动复制链接');
+    });
 }
 
 document.getElementById('fileInput').addEventListener('change', function(e) {
