@@ -54,13 +54,6 @@ function updateGallery(images) {
                 initMasonry();
             }
         };
-
-        // 在后台加载原图
-        const fullImg = new Image();
-        fullImg.onload = function() {
-            img.src = image.path;
-        }
-        fullImg.src = image.path;
     });
 
     // 绑定事件监听器
@@ -180,7 +173,7 @@ initConfig().then(() => {
     loadImages(); // 加载图片
 });
 
-// 初始加载图片列表
+// 初始加载��片列表
 loadImages();
 
 // 在页面加载完成后初始化瀑布流布局

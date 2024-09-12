@@ -42,6 +42,8 @@ async function getImageInfo(filePath) {
 async function getImagesRecursively(dir, searchTerm = '') {
     const entries = await fs.readdir(dir, { withFileTypes: true });
     let results = [];
+    let maxResolutionImage = null;
+    let maxResolution = 0;
 
     for (let entry of entries) {
         const fullPath = path.join(dir, entry.name);
@@ -54,19 +56,29 @@ async function getImagesRecursively(dir, searchTerm = '') {
                 ['.jpg', '.jpeg', '.png', '.gif'].includes(ext) && 
                 (!searchTerm || entry.name.toLowerCase().includes(searchTerm))) {
                 const imageInfo = await getImageInfo(fullPath);
-                const relativePath = path.relative(path.join(__dirname, 'public'), fullPath);
-                const publicPath = '/' + relativePath.replace(/\\/g, '/');
-                const thumbnailPath = await createThumbnail(fullPath);
-                const thumbnailPublicPath = '/' + path.relative(path.join(__dirname, 'public'), thumbnailPath).replace(/\\/g, '/');
-                
-                results.push({
-                    path: publicPath,
-                    thumbnailPath: thumbnailPublicPath,
-                    resolution: `${imageInfo.width}x${imageInfo.height}`,
-                    isDirectory: false
-                });
+                if (imageInfo.resolution > maxResolution) {
+                    maxResolution = imageInfo.resolution;
+                    maxResolutionImage = {
+                        path: fullPath,
+                        ...imageInfo
+                    };
+                }
             }
         }
+    }
+
+    if (maxResolutionImage) {
+        const relativePath = path.relative(path.join(__dirname, 'public'), maxResolutionImage.path);
+        const publicPath = '/' + relativePath.replace(/\\/g, '/');
+        const thumbnailPath = await createThumbnail(maxResolutionImage.path);
+        const thumbnailPublicPath = '/' + path.relative(path.join(__dirname, 'public'), thumbnailPath).replace(/\\/g, '/');
+        
+        results.push({
+            path: publicPath,
+            thumbnailPath: thumbnailPublicPath,
+            resolution: `${maxResolutionImage.width}x${maxResolutionImage.height}`,
+            isDirectory: false
+        });
     }
 
     return results;
