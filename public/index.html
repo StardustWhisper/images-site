@@ -5,43 +5,190 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>图片瀑布流</title>
     <style>
-        #gallery {
-            column-count: 3;
-            column-gap: 10px;
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .upload-container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .upload-form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .file-input {
+            display: none;
+        }
+        .file-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+        .file-label:hover {
+            background-color: #45a049;
+        }
+        .upload-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+        .upload-btn:hover {
+            background-color: #45a049;
+        }
+        #fileInput {
+            display: none;
+        }
+        .image-list {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
         }
         .image-item {
-            break-inside: avoid;
-            margin-bottom: 10px;
-            position: relative;
-            overflow: hidden;
-            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
         }
-        .image-item img {
-            width: 100%;
-            display: block;
-            transition: transform 0.3s ease;
-        }
-        .image-item:hover img {
-            transform: scale(1.05);
-        }
-        .copy-link-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background-color: rgba(0, 0, 0, 0.5);
+        .delete-btn {
+            padding: 5px 10px;
+            background-color: #f44336;
             color: white;
             border: none;
-            padding: 5px 10px;
+            border-radius: 4px;
             cursor: pointer;
+        }
+        .delete-btn:hover {
+            background-color: #d32f2f;
+        }
+        #gallery {
+            column-count: 4;
+            column-gap: 15px;
+            margin-top: 20px;
+        }
+        .image-container {
+            position: relative;
+            break-inside: avoid;
+            margin-bottom: 15px;
+            background-color: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        .image-container:hover {
+            transform: scale(1.05);
+            z-index: 1;
+        }
+        .image-container img {
+            width: 100%;
+            display: block;
+            transition: filter 0.3s ease;
+        }
+        .image-container:hover img {
+            filter: brightness(90%);
+        }
+        .image-actions {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
             opacity: 0;
             transition: opacity 0.3s ease;
         }
-        .image-item:hover .copy-link-btn {
+        .image-container:hover .image-actions {
             opacity: 1;
+        }
+        .image-actions button {
+            padding: 10px 15px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            background-color: rgba(255, 255, 255, 0.8);
+            color: #333;
+        }
+        .image-actions button:hover {
+            background-color: rgba(255, 255, 255, 1);
+        }
+        .copy-btn {
+            background-color: #2196F3;
+            color: white;
+        }
+        .copy-btn:hover {
+            background-color: #1e87db;
+        }
+        @media (max-width: 1200px) {
+            #gallery {
+                column-count: 3;
+            }
+        }
+        @media (max-width: 800px) {
+            #gallery {
+                column-count: 2;
+            }
+        }
+        @media (max-width: 500px) {
+            #gallery {
+                column-count: 1;
+            }
+        }
+        .search-container {
+            display: flex;
+            align-items: center;
+        }
+        #searchInput {
+            padding: 10px;
+            width: 200px;
+            border: 1px solid #ddd;
+            border-radius: 4px 0 0 4px;
+            font-size: 16px;
+        }
+        #searchButton {
+            padding: 10px 20px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+        }
+        #searchButton:hover {
+            background-color: #1e87db;
         }
     </style>
 </head>
 <body>
+    <div class="upload-container">
+        <input type="file" id="fileInput" accept="image/*" multiple>
+        <label for="fileInput" class="upload-btn">上传图片</label>
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="搜索图片...">
+            <button id="searchButton">搜索</button>
+        </div>
+    </div>
     <div id="gallery"></div>
     <script src="script.js"></script>
 </body>
