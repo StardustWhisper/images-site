@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片瀑布流</title>
+    <style>
+        #gallery {
+            column-count: 3;
+            column-gap: 10px;
+        }
+        .image-item {
+            break-inside: avoid;
+            margin-bottom: 10px;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .image-item img {
+            width: 100%;
+            display: block;
+            transition: transform 0.3s ease;
+        }
+        .image-item:hover img {
+            transform: scale(1.05);
+        }
+        .copy-link-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .image-item:hover .copy-link-btn {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div id="gallery"></div>
+    <script src="script.js"></script>
+</body>
+</html>
