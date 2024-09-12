@@ -10,14 +10,15 @@ async function loadImages(searchTerm = '') {
 function updateGallery(images) {
     const gallery = document.getElementById('gallery');
     gallery.innerHTML = '';
-    images.forEach(imagePath => {
+    images.forEach(image => {
         const container = document.createElement('div');
         container.className = 'image-container';
-        const imageName = imagePath.split('/').pop();
+        const imageName = image.path.split('/').pop();
         container.innerHTML = `
-            <img src="${imagePath}" alt="${imageName}" loading="lazy">
+            <img src="${image.path}" alt="${imageName}" loading="lazy">
+            <div class="image-resolution">${image.resolution}</div>
             <div class="image-actions">
-                <button class="copy-btn" data-url="${imagePath}">复制链接</button>
+                <button class="copy-btn" data-url="${image.path}">复制链接</button>
                 <button class="delete-btn" data-name="${imageName}">删除</button>
             </div>
         `;
@@ -64,7 +65,12 @@ function deleteImage(imageName) {
 }
 
 function copyImageUrl(url) {
-    navigator.clipboard.writeText(url).then(() => {
+    // 获取当前页面的基础 URL
+    const baseUrl = window.location.origin;
+    // 构建完整的 URL
+    const fullUrl = new URL(url, baseUrl).href;
+    
+    navigator.clipboard.writeText(fullUrl).then(() => {
         alert('图片链接已复制到剪贴板');
     }).catch(err => {
         console.error('复制失败:', err);

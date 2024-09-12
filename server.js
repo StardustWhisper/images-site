@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs').promises;
 const multer = require('multer');
+const sharp = require('sharp');
 
 const app = express();
 const PORT = 3000;
@@ -21,18 +22,38 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-async function getImagePaths(dir) {
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif'];
+async function getImageInfo(filePath) {
+    try {
+        const metadata = await sharp(filePath).metadata();
+        return {
+            width: metadata.width,
+            height: metadata.height
+        };
+    } catch (error) {
+        console.error('获取图片信息失败:', error);
+        return null;
+    }
+}
+
+async function getImagesRecursively(dir, searchTerm = '') {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
     let results = [];
 
-    const files = await fs.readdir(dir, { withFileTypes: true });
-
-    for (const file of files) {
-        const fullPath = path.join(dir, file.name);
-        if (file.isDirectory()) {
-            results = results.concat(await getImagePaths(fullPath));
-        } else if (imageExtensions.includes(path.extname(file.name).toLowerCase())) {
-            results.push(fullPath);
+    for (let entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            results = results.concat(await getImagesRecursively(fullPath, searchTerm));
+        } else {
+            const ext = path.extname(entry.name).toLowerCase();
+            if (['.jpg', '.jpeg', '.png', '.gif'].includes(ext) && 
+                (!searchTerm || entry.name.toLowerCase().includes(searchTerm))) {
+                const relativePath = path.relative(path.join(__dirname, 'public'), fullPath);
+                const imageInfo = await getImageInfo(fullPath);
+                results.push({
+                    path: '/' + relativePath.replace(/\\/g, '/'),
+                    resolution: imageInfo ? `${imageInfo.width}x${imageInfo.height}` : 'Unknown'
+                });
+            }
         }
     }
 
@@ -44,14 +65,7 @@ app.get('/get-images', async (req, res) => {
     const imagesDir = path.join(__dirname, 'public', 'images');
     
     try {
-        const files = await fs.readdir(imagesDir);
-        const imageFiles = files.filter(file => {
-            const ext = path.extname(file).toLowerCase();
-            return ['.jpg', '.jpeg', '.png', '.gif'].includes(ext) && 
-                   (!searchTerm || file.toLowerCase().includes(searchTerm));
-        });
-        
-        const imagePaths = imageFiles.map(file => `/images/${file}`);
+        const imagePaths = await getImagesRecursively(imagesDir, searchTerm);
         res.json(imagePaths);
     } catch (error) {
         console.error('读取图片目录失败:', error);
