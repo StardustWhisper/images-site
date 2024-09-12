@@ -21,6 +21,8 @@ EXPOSE 3000
 
 # 定义环境变量
 ENV NODE_ENV=production
+ENV PORT=3000
+ENV BASE_URL=http://localhost:3000
 
 # 运行应用
 CMD ["node", "server.js"]

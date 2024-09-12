@@ -5,7 +5,8 @@ const multer = require('multer');
 const sharp = require('sharp');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
 // 静态文件服务
 app.use(express.static('public'));
@@ -96,29 +97,31 @@ app.get('/images', (req, res) => {
     });
 });
 
-app.delete('/delete-image/:imageName', async (req, res) => {
-    const imageName = req.params.imageName;
-    const imagePath = path.join(__dirname, 'public', 'images', imageName);
+app.delete('/delete-image/:imagePath(*)', async (req, res) => {
+    const imagePath = req.params.imagePath;
+    const fullImagePath = path.join(__dirname, 'public', imagePath);
 
-    console.log('收到删除请求，图片名称:', imageName); // 添加调试日志
-    console.log('图片路径:', imagePath); // 添加调试日志
+    console.log('图片路径:', fullImagePath);
 
     try {
-        await fs.access(imagePath); // 检查文件是否存在
-        console.log('文件存在，开始删除'); // 添加调试日志
-        await fs.unlink(imagePath);
-        console.log('文件删除成功'); // 添加调试日志
+        await fs.access(fullImagePath); // 检查文件是否存在
+        await fs.unlink(fullImagePath); // 删除文件
+        console.log('图片删除成功');
         res.json({ success: true, message: '图片删除成功' });
     } catch (error) {
         console.error('删除图片失败:', error);
         if (error.code === 'ENOENT') {
             res.status(404).json({ success: false, message: '文件不存在' });
         } else {
-            res.status(500).json({ success: false, message: '删除图片失败' });
+            res.status(500).json({ success: false, message: '删除图片失败: ' + error.message });
         }
     }
 });
 
+app.get('/config', (req, res) => {
+    res.json({ baseUrl: BASE_URL });
+});
+
 app.listen(PORT, () => {
-    console.log(`服务器运行在 http://localhost:${PORT}`);
+    console.log(`服务器运行在 ${BASE_URL}`);
 });

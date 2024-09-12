@@ -1,3 +1,17 @@
+let baseUrl = '';
+
+async function initConfig() {
+    try {
+        const response = await fetch('/config');
+        const config = await response.json();
+        baseUrl = config.baseUrl;
+        console.log('Base URL:', baseUrl);
+    } catch (error) {
+        console.error('Failed to fetch config:', error);
+        baseUrl = window.location.origin;
+    }
+}
+
 async function loadImages(searchTerm = '') {
     fetch(`/get-images?search=${encodeURIComponent(searchTerm)}`)
         .then(response => response.json())
@@ -13,13 +27,12 @@ function updateGallery(images) {
     images.forEach(image => {
         const container = document.createElement('div');
         container.className = 'image-container';
-        const imageName = image.path.split('/').pop();
         container.innerHTML = `
-            <img src="${image.path}" alt="${imageName}" loading="lazy">
+            <img src="${image.path}" alt="${image.path.split('/').pop()}" loading="lazy">
             <div class="image-resolution">${image.resolution}</div>
             <div class="image-actions">
                 <button class="copy-btn" data-url="${image.path}">复制链接</button>
-                <button class="delete-btn" data-name="${imageName}">删除</button>
+                <button class="delete-btn" data-path="${image.path}">删除</button>
             </div>
         `;
         gallery.appendChild(container);
@@ -34,15 +47,14 @@ function updateGallery(images) {
 
     document.querySelectorAll('.delete-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-            deleteImage(this.getAttribute('data-name'));
+            deleteImage(this.getAttribute('data-path'));
         });
     });
 }
 
-function deleteImage(imageName) {
-    console.log('开始删除图片:', imageName);
-    console.log('直接发送删除请求，跳过确认');
-    fetch(`/delete-image/${imageName}`, { method: 'DELETE' })
+function deleteImage(imagePath) {
+    console.log('开始删除图片:', imagePath);
+    fetch(`/delete-image${imagePath}`, { method: 'DELETE' })
         .then(response => {
             console.log('收到服务器响应，状态码:', response.status);
             return response.json();
@@ -65,17 +77,18 @@ function deleteImage(imageName) {
 }
 
 function copyImageUrl(url) {
-    // 获取当前页面的基础 URL
-    const baseUrl = window.location.origin;
-    // 构建完整的 URL
     const fullUrl = new URL(url, baseUrl).href;
     
-    navigator.clipboard.writeText(fullUrl).then(() => {
-        alert('图片链接已复制到剪贴板');
-    }).catch(err => {
-        console.error('复制失败:', err);
-        alert('复制图片链接失败');
-    });
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(fullUrl).then(() => {
+            alert('图片链接已复制到剪贴板');
+        }).catch(err => {
+            console.error('复制失败:', err);
+            fallbackCopyTextToClipboard(fullUrl);
+        });
+    } else {
+        fallbackCopyTextToClipboard(fullUrl);
+    }
 }
 
 document.getElementById('fileInput').addEventListener('change', function(e) {
@@ -120,8 +133,10 @@ document.getElementById('searchInput').addEventListener('keypress', function(e) 
     }
 });
 
-// 初始加载所有图片
-loadImages();
+// 在页面加载时初始化配置
+initConfig().then(() => {
+    loadImages(); // 加载图片
+});
 
 // 初始加载图片列表
 loadImages();
