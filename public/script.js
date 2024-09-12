@@ -27,28 +27,67 @@ function updateGallery(images) {
     images.forEach(image => {
         const container = document.createElement('div');
         container.className = 'image-container';
-        container.innerHTML = `
-            <img src="${image.path}" alt="${image.path.split('/').pop()}" loading="lazy">
-            <div class="image-resolution">${image.resolution}</div>
-            <div class="image-actions">
-                <button class="copy-btn" data-url="${image.path}">复制链接</button>
-                <button class="delete-btn" data-path="${image.path}">删除</button>
-            </div>
-        `;
+        if (image.isDirectory) {
+            container.innerHTML = `
+                <div class="directory-icon">📁</div>
+                <div class="directory-name">${image.path.split('/').pop()}</div>
+            `;
+        } else {
+            container.innerHTML = `
+                <img src="${image.thumbnailPath}" alt="${image.path.split('/').pop()}" data-full-image="${image.path}" loading="lazy">
+                <div class="image-resolution">${image.resolution}</div>
+                <div class="image-actions">
+                    <button class="copy-btn" data-url="${image.path}">复制链接</button>
+                    <button class="delete-btn" data-path="${image.path}">删除</button>
+                </div>
+            `;
+        }
         gallery.appendChild(container);
+
+        if (!image.isDirectory) {
+            // 在后台加载原图
+            const img = container.querySelector('img');
+            const fullImg = new Image();
+            fullImg.onload = function() {
+                img.src = image.path;
+            }
+            fullImg.src = image.path;
+        }
     });
 
-    // 重新绑定事件监听器
+    // 初始化瀑布流布局
+    initMasonry();
+
+    // 绑定事件监听器
     document.querySelectorAll('.copy-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation(); // 阻止事件冒泡
             copyImageUrl(this.getAttribute('data-url'));
         });
     });
 
     document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation(); // 阻止事件冒泡
             deleteImage(this.getAttribute('data-path'));
         });
+    });
+
+    document.querySelectorAll('.image-container').forEach(container => {
+        container.addEventListener('click', function() {
+            const fullImageUrl = this.querySelector('img').getAttribute('data-full-image');
+            window.open(fullImageUrl, '_blank');
+        });
+    });
+}
+
+// 初始化瀑布流布局
+function initMasonry() {
+    const gallery = document.getElementById('gallery');
+    new Masonry(gallery, {
+        itemSelector: '.image-container',
+        columnWidth: '.image-container',
+        percentPosition: true
     });
 }
 
@@ -140,3 +179,6 @@ initConfig().then(() => {
 
 // 初始加载图片列表
 loadImages();
+
+// 在页面加载完成后初始化瀑布流布局
+window.addEventListener('load', initMasonry);
