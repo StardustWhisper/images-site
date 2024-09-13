@@ -7,6 +7,7 @@ const sharp = require('sharp');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+const COPY_URL = process.env.COPY_URL || BASE_URL;
 
 // 缩略图标记
 const THUMB_PREFIX = 'thumb_';
@@ -14,6 +15,25 @@ const THUMB_PREFIX = 'thumb_';
 // 静态文件服务
 app.use(express.static('public'));
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
+
+// 配置 multer 存储
+const storage = multer.diskStorage({
+    destination: async function (req, file, cb) {
+        const folderName = file.originalname; // 使用完整文件名作为文件夹名
+        const folderPath = path.join(__dirname, 'public', 'images', folderName);
+        try {
+            await fs.mkdir(folderPath, { recursive: true });
+            cb(null, folderPath);
+        } catch (error) {
+            cb(error, null);
+        }
+    },
+    filename: function (req, file, cb) {
+        cb(null, file.originalname);
+    }
+});
+
+const upload = multer({ storage: storage });
 
 async function createThumbnail(imagePath) {
     const thumbnailName = `${THUMB_PREFIX}${path.basename(imagePath)}`;
@@ -23,21 +43,52 @@ async function createThumbnail(imagePath) {
         await fs.access(thumbnailPath);
         return thumbnailPath;
     } catch (error) {
-        await sharp(imagePath)
-            .resize(300, 300, { fit: 'inside', withoutEnlargement: true })
-            .toFile(thumbnailPath);
-        return thumbnailPath;
+        try {
+            const image = sharp(imagePath);
+            const metadata = await image.metadata();
+            const aspectRatio = metadata.width / metadata.height;
+
+            let width, height;
+            if (aspectRatio > 1) {
+                width = 300;
+                height = Math.round(300 / aspectRatio);
+            } else {
+                height = 300;
+                width = Math.round(300 * aspectRatio);
+            }
+
+            await image
+                .resize(width, height, { fit: 'inside', withoutEnlargement: true })
+                .toFormat('jpeg')
+                .toFile(thumbnailPath);
+
+            return thumbnailPath;
+        } catch (err) {
+            console.error('Error creating thumbnail:', err);
+            throw err;
+        }
     }
 }
 
 async function getImageInfo(filePath) {
-    const metadata = await sharp(filePath).metadata();
-    return {
-        width: metadata.width,
-        height: metadata.height,
-        resolution: metadata.width * metadata.height
-    };
+    try {
+        const metadata = await sharp(filePath).metadata();
+        return {
+            width: metadata.width,
+            height: metadata.height,
+            resolution: metadata.width * metadata.height
+        };
+    } catch (error) {
+        console.error(`Error getting image info for ${filePath}:`, error);
+        return {
+            width: 0,
+            height: 0,
+            resolution: 0
+        };
+    }
 }
+
+const IMAGES_PER_PAGE = 20; // 每页显示的图片数量
 
 async function getImagesRecursively(dir, searchTerm = '') {
     const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -84,42 +135,44 @@ async function getImagesRecursively(dir, searchTerm = '') {
     return results;
 }
 
-// 在上传图片时创建缩略图
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'public/images/')
-    },
-    filename: function (req, file, cb) {
-        cb(null, Date.now() + path.extname(file.originalname))
-    }
-});
-
-const upload = multer({ storage: storage });
-
 app.get('/get-images', async (req, res) => {
-    console.log('Received request for images');
     const searchTerm = req.query.search ? req.query.search.toLowerCase() : '';
+    const page = parseInt(req.query.page) || 1;
     const imagesDir = path.join(__dirname, 'public', 'images');
     
     try {
-        console.log('Searching for images in:', imagesDir);
-        const imagePaths = await getImagesRecursively(imagesDir, searchTerm);
-        console.log('Found', imagePaths.length, 'images');
-        res.json(imagePaths);
+        const allImages = await getImagesRecursively(imagesDir, searchTerm);
+        const totalImages = allImages.length;
+        const totalPages = Math.ceil(totalImages / IMAGES_PER_PAGE);
+        const startIndex = (page - 1) * IMAGES_PER_PAGE;
+        const endIndex = startIndex + IMAGES_PER_PAGE;
+        const paginatedImages = allImages.slice(startIndex, endIndex);
+
+        res.json({
+            images: paginatedImages,
+            currentPage: page,
+            totalPages: totalPages,
+            totalImages: totalImages
+        });
     } catch (error) {
         console.error('读取图片目录失败:', error);
         res.status(500).json({ error: '无法读取图片目录' });
     }
 });
 
-app.post('/upload', upload.array('images', 10), async (req, res) => {
-    if (req.files && req.files.length > 0) {
-        for (let file of req.files) {
-            await createThumbnail(file.path);
+app.post('/upload', upload.array('images'), async (req, res) => {
+    if (!req.files || req.files.length === 0) {
+        return res.status(400).send('No files uploaded.');
+    }
+    try {
+        for (const file of req.files) {
+            const imagePath = path.join(file.destination, file.filename);
+            await createThumbnail(imagePath);
         }
-        res.json({ success: true, message: '图片上传成功' });
-    } else {
-        res.json({ success: false, message: '图片上传失败' });
+        res.send('Files uploaded successfully');
+    } catch (error) {
+        console.error('Error processing uploaded files:', error);
+        res.status(500).send('Error processing uploaded files');
     }
 });
 
@@ -160,7 +213,9 @@ app.delete('/delete-image/:imagePath(*)', async (req, res) => {
 });
 
 app.get('/config', (req, res) => {
-    res.json({ baseUrl: BASE_URL });
+    res.json({
+        copyUrl: process.env.COPY_URL || `http://${req.headers.host}`
+    });
 });
 
 app.get('/health', (req, res) => {
