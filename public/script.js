@@ -1,3 +1,4 @@
+// 定义全局变量
 let copyUrl = '';
 let msnry;
 let currentPage = 1;
@@ -6,7 +7,7 @@ let currentSearchTerm = '';
 let infScroll;
 let loadedImageUrls = new Set();
 
-// 在文件开头添加这个函数
+// 初始化配置,获取复制URL
 async function initConfig() {
     try {
         const response = await fetch('/config');
@@ -19,6 +20,7 @@ async function initConfig() {
     }
 }
 
+// 复制图片URL到剪贴板
 function copyImageUrl(url) {
     const fullUrl = new URL(url, copyUrl).href;
     if (navigator.clipboard) {
@@ -35,6 +37,7 @@ function copyImageUrl(url) {
     }
 }
 
+// 复制文本到剪贴板的后备方法
 function fallbackCopyTextToClipboard(text) {
     const textArea = document.createElement("textarea");
     textArea.value = text;
@@ -54,16 +57,19 @@ function fallbackCopyTextToClipboard(text) {
     document.body.removeChild(textArea);
 }
 
+// 显示加载中状态
 function showLoading() {
     document.getElementById('loading').style.display = 'flex';
     document.getElementById('content').style.display = 'none';
 }
 
+// 隐藏加载中状态
 function hideLoading() {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = 'block';
 }
 
+// 更新图片画廊
 function updateGallery(images) {
     const gallery = document.getElementById('gallery');
     gallery.innerHTML = '';
@@ -71,6 +77,7 @@ function updateGallery(images) {
     appendImages(images);
 }
 
+// 向画廊添加图片
 function appendImages(images) {
     const gallery = document.getElementById('gallery');
     const fragment = document.createDocumentFragment();
@@ -82,9 +89,11 @@ function appendImages(images) {
             const container = document.createElement('div');
             container.className = 'image-container';
             
+            // 计算图片宽高比
             const [width, height] = image.resolution.split('x').map(Number);
             const aspectRatio = height / width * 100;
             
+            // 创建图片容器HTML
             container.innerHTML = `
                 <div class="image-wrapper" style="padding-top: ${aspectRatio}%;">
                     <img src="${image.thumbnailPath}" alt="${image.path.split('/').pop()}" data-full-image="${image.path}">
@@ -117,6 +126,7 @@ function appendImages(images) {
     }
 }
 
+// 处理复制按钮点击事件
 function handleCopyClick(e) {
     e.stopPropagation();
     const url = this.getAttribute('data-url');
@@ -125,6 +135,7 @@ function handleCopyClick(e) {
     }
 }
 
+// 初始化Masonry布局
 function initMasonry() {
     const gallery = document.getElementById('gallery');
     msnry = new Masonry(gallery, {
@@ -136,6 +147,7 @@ function initMasonry() {
     });
 }
 
+// 加载图片
 async function loadImages(page = 1, searchTerm = '') {
     showLoading();
     try {
@@ -161,11 +173,13 @@ async function loadImages(page = 1, searchTerm = '') {
     }
 }
 
+// 更新分页
 function updatePagination() {
     const paginationContainer = document.getElementById('pagination');
     paginationContainer.innerHTML = '';
 
     if (totalPages > 1) {
+        // 创建上一页按钮
         const prevButton = document.createElement('button');
         prevButton.textContent = '上一页';
         prevButton.disabled = currentPage === 1;
@@ -181,6 +195,7 @@ function updatePagination() {
             paginationContainer.appendChild(pageButton);
         }
 
+        // 创建下一页按钮
         const nextButton = document.createElement('button');
         nextButton.textContent = '下一页';
         nextButton.disabled = currentPage === totalPages;
@@ -189,6 +204,7 @@ function updatePagination() {
     }
 }
 
+// 处理搜索
 function handleSearch(event) {
     if (event) {
         event.preventDefault();
@@ -201,6 +217,7 @@ function handleSearch(event) {
     }
 }
 
+// 初始化事件监听器
 function initEventListeners() {
     const uploadForm = document.querySelector('.upload-form');
     if (uploadForm) {
@@ -213,6 +230,7 @@ function initEventListeners() {
     }
 }
 
+// 处理图片上传
 async function handleUpload(event) {
     if (event) {
         event.preventDefault();
@@ -238,6 +256,7 @@ async function handleUpload(event) {
     }
 }
 
+// 初始化无限滚动
 function initInfiniteScroll() {
     if (infScroll) {
         infScroll.destroy();
@@ -266,7 +285,7 @@ function initInfiniteScroll() {
     });
 }
 
-// 修改 DOMContentLoaded 事件监听器
+// 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', async () => {
     await initConfig();
     initEventListeners();
